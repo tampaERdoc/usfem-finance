@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>USF Emergency Medicine Revenue and Expenses</title>
+<style>
+:root{--green:#006747;--gold:#CFC493;--ink:#1c2420;--muted:#5d6b64;--line:#dfe5e1;--bg:#f6f7f5;--panel:#fff;--neg:#a32d2d}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;color:var(--ink);background:var(--bg);font-size:15px}
+header{background:var(--green);color:#fff;padding:18px 20px;border-bottom:5px solid var(--gold)}
+header h1{margin:0;font-size:21px;font-weight:700}
+header p{margin:4px 0 0;font-size:13px;opacity:.9}
+main{max-width:1280px;margin:0 auto;padding:16px 20px 60px}
+#gate{max-width:380px;margin:70px auto;background:var(--panel);border:1px solid var(--line);border-top:5px solid var(--green);border-radius:8px;padding:26px}
+#gate h2{margin:0 0 6px;font-size:18px}
+#gate p{color:var(--muted);font-size:13px;margin:0 0 14px}
+#gate input{width:100%;padding:10px;font-size:16px;border:1px solid #b9c4be;border-radius:6px}
+#gate button{margin-top:12px;width:100%;padding:10px;font-size:15px;background:var(--green);color:#fff;border:0;border-radius:6px;cursor:pointer}
+#err{color:var(--neg);font-size:13px;min-height:18px;margin-top:8px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 14px}
+.tabs button{padding:9px 14px;border:1px solid var(--line);background:var(--panel);border-radius:6px;font-size:14px;cursor:pointer;color:var(--ink)}
+.tabs button[aria-selected=true]{background:var(--green);color:#fff;border-color:var(--green)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin-bottom:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-top:4px solid var(--green);border-radius:8px;padding:12px 14px}
+.card .l{font-size:12px;color:var(--muted)}
+.card .b{font-size:22px;margin-top:4px;font-variant-numeric:tabular-nums}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.bar input{flex:1;min-width:200px;padding:8px 10px;border:1px solid #b9c4be;border-radius:6px;font-size:14px}
+.bar button{padding:8px 12px;border:1px solid var(--line);background:var(--panel);border-radius:6px;cursor:pointer;font-size:13px}
+.wrap{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:640px}
+th{position:sticky;top:0;background:#eef2ef;text-align:right;font-size:12px;padding:9px 10px;border-bottom:2px solid var(--gold);white-space:nowrap}
+th:first-child{text-align:left}
+td{padding:7px 10px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;vertical-align:top}
+td:first-child{text-align:left;white-space:normal}
+tr.d0 td{font-weight:700;background:#e3ede8}
+tr.d1 td{font-weight:700;background:#f1f5f2}
+tr.d2 td{font-weight:700}
+tr.has{cursor:pointer}
+tr.has:hover td{background:#f4f1e2}
+.tw{display:inline-block;width:16px;color:var(--green);font-weight:700}
+.sub{display:block;font-weight:400;font-size:12px;color:var(--muted);margin-top:2px}
+.neg{color:var(--neg)}
+.tag{display:inline-block;font-size:11px;font-weight:400;border:1px solid var(--line);border-radius:10px;padding:1px 7px;margin-left:6px;color:var(--muted);background:#fff}
+.info{cursor:pointer;color:var(--green);font-size:12px;margin-left:6px;text-decoration:underline;font-weight:400}
+tr.detail td{background:#fbfaf3;font-size:12.5px;color:var(--ink);white-space:normal;text-align:left;line-height:1.5}
+.notes{font-size:13px;color:var(--muted);margin-top:14px;line-height:1.55}
+.notes li{margin-bottom:4px}
+svg text{font-size:12px;fill:var(--muted);font-family:Arial}
+@media print{header,.tabs,.bar,#gate{display:none}}
+</style>
+</head>
+<body>
+<header><h1>USF Emergency Medicine Revenue and Expenses</h1><p id="stamp">FY27 drill down by fund, program and person</p></header>
+<div id="gate">
+  <h2>Enter the password</h2>
+  <p>This page holds person level pay. The data stays encrypted until the password is entered.</p>
+  <form id="gf"><input id="pw" type="password" autocomplete="current-password" aria-label="Password" autofocus><button type="submit">Open</button></form>
+  <div id="err" role="alert"></div>
+</div>
+<main id="app" hidden>
+  <div class="cards" id="cards"></div>
+  <div class="tabs" role="tablist" id="tabs">
+    <button role="tab" data-t="revenue">Revenue</button>
+    <button role="tab" data-t="expenses">Expenses</button>
+    <button role="tab" data-t="programs">Pay programs</button>
+    <button role="tab" data-t="umsa">UMSA 2600 balance</button>
+  </div>
+  <div id="treeview">
+    <div class="bar"><input id="q" type="search" placeholder="Search a person, program or fund" aria-label="Search"><button id="exp">Expand all</button><button id="col">Collapse all</button></div>
+    <div class="wrap"><table><thead><tr id="hd"></tr></thead><tbody id="tb"></tbody></table></div>
+  </div>
+  <div id="umsaview" hidden>
+    <div class="wrap" style="padding:14px"><div id="chart"></div></div>
+    <div class="wrap" style="margin-top:12px"><table><thead><tr><th>Month</th><th>Revenue</th><th>Expenses</th><th>Balance at month end</th><th>Basis</th></tr></thead><tbody id="ub"></tbody></table></div>
+  </div>
+  <ul class="notes" id="notes"></ul>
+</main>
+<script>
+const $ = (s) => document.querySelector(s);
+const money = (v) => { if (v === null || v === undefined) return ''; const s = '$' + Math.round(Math.abs(v)).toLocaleString('en-US'); return v < 0 ? '(' + s + ')' : s; };
+let DATA = null, tab = 'revenue', open = new Set(['0']), query = '';
+
+async function unlock(pw) {
+  const enc = await (await fetch('data.enc.json', {cache: 'no-store'})).json();
+  const b = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(pw), 'PBKDF2', false, ['deriveKey']);
+  const key = await crypto.subtle.deriveKey({name: 'PBKDF2', salt: b(enc.salt), iterations: enc.iter, hash: 'SHA-256'}, base, {name: 'AES-GCM', length: 256}, false, ['decrypt']);
+  const plain = await crypto.subtle.decrypt({name: 'AES-GCM', iv: b(enc.iv)}, key, b(enc.ct));
+  return JSON.parse(new TextDecoder().decode(plain));
+}
+$('#gf').addEventListener('submit', async (e) => {
+  e.preventDefault(); $('#err').textContent = 'Opening';
+  try { DATA = await unlock($('#pw').value); sessionStorage.setItem('usfemfin', $('#pw').value); start(); }
+  catch (x) { $('#err').textContent = 'That password did not open the data.'; }
+});
+(async () => { const p = sessionStorage.getItem('usfemfin'); if (p) { try { DATA = await unlock(p); start(); } catch (x) {} } })();
+
+function start() {
+  $('#gate').hidden = true; $('#app').hidden = false;
+  $('#stamp').textContent = 'FY27 drill down by fund, program and person. Built ' + DATA.generated + '. ASF pay actual through ' + DATA.asf_actual_through + '. USF salary actual through ' + DATA.ucs_actual_through + '.';
+  const r = DATA.tabs.revenue.tree.v, x = DATA.tabs.expenses.tree.v, u = DATA.umsa[DATA.umsa.length - 1];
+  const cards = [['Revenue, FY27 projected', r[2]], ['Expenses, FY27 projected', x[2]], ['Expenses, FY27 actual to date', x[1]], ['UMSA 2600 balance, June 30, 2027 projected', u.balance]];
+  $('#cards').replaceChildren(...cards.map(([l, v]) => { const d = document.createElement('div'); d.className = 'card'; const a = document.createElement('div'); a.className = 'l'; a.textContent = l; const b = document.createElement('div'); b.className = 'b' + (v < 0 ? ' neg' : ''); b.textContent = money(v); d.append(a, b); return d; }));
+  const notes = ['Click any row with an arrow to open the level below it. Click Details on a row to see its source file, funding source and basis.',
+    'Actual to date comes from the ASF payroll files and the USF salary tracking workbooks. Budget comes from the FY27 TeamHealth contract model, the personnel workbook and the budget workbooks.',
+    'Projected ASF pay carries standard monthly pay for future months and does not yet include future RVU, CDU or PIP payouts, so projected incentive pay is understated until those are paid.',
+    'Projected USF salary is actual to date plus the latest pay period amount for the remaining pay periods.',
+    'Fringe, malpractice, Dean\'s tax and operating lines are budget figures. No FY27 UMSA 2600 ledger was available.',
+    'PhD faculty can only be paid on USF (UCS) state side accounts. TeamHealth money paid out on ASF cannot pay them.',
+    'Pay programs shows the same payroll dollars as Expenses, grouped by program and fund with the people under each.'];
+  $('#notes').replaceChildren(...notes.map((t) => { const li = document.createElement('li'); li.textContent = t; return li; }));
+  document.querySelectorAll('#tabs button').forEach((b) => b.addEventListener('click', () => { tab = b.dataset.t; open = new Set(['0']); query = ''; $('#q').value = ''; render(); }));
+  $('#q').addEventListener('input', (e) => { query = e.target.value.trim().toLowerCase(); render(); });
+  $('#exp').addEventListener('click', () => { const all = new Set(); (function w(n, id) { all.add(id); (n.k || []).forEach((c, i) => w(c, id + '.' + i)); })(DATA.tabs[tab].tree, '0'); open = all; render(); });
+  $('#col').addEventListener('click', () => { open = new Set(['0']); render(); });
+  render();
+}
+function matches(n) { return n.n.toLowerCase().includes(query) || (n.title || '').toLowerCase().includes(query) || (n.fund || '').toLowerCase().includes(query); }
+function anyMatch(n) { return matches(n) || (n.k || []).some(anyMatch); }
+function render() {
+  document.querySelectorAll('#tabs button').forEach((b) => b.setAttribute('aria-selected', b.dataset.t === tab));
+  const isU = tab === 'umsa'; $('#treeview').hidden = isU; $('#umsaview').hidden = !isU;
+  if (isU) return renderUmsa();
+  const T = DATA.tabs[tab];
+  const hd = $('#hd'); hd.replaceChildren(); ['Item'].concat(T.cols).forEach((c) => { const th = document.createElement('th'); th.textContent = c; hd.appendChild(th); });
+  const tb = $('#tb'); tb.replaceChildren();
+  (function walk(n, id, depth, forced) {
+    if (query && !forced && !anyMatch(n)) return;
+    const kids = n.k || [], isOpen = query ? (kids.some(anyMatch) || forced && open.has(id)) : open.has(id);
+    const tr = document.createElement('tr'); tr.className = 'd' + Math.min(depth, 3) + (kids.length ? ' has' : '');
+    const td = document.createElement('td'); td.style.paddingLeft = (10 + depth * 20) + 'px';
+    const tw = document.createElement('span'); tw.className = 'tw'; tw.textContent = kids.length ? (isOpen ? '▾' : '▸') : ''; td.appendChild(tw);
+    td.appendChild(document.createTextNode(n.n));
+    if (kids.length) { const c = document.createElement('span'); c.className = 'tag'; c.textContent = kids.length; td.appendChild(c); }
+    const hasInfo = n.src || n.fb || n.basis || n.note || n.fund || n.pay;
+    if (hasInfo) { const i = document.createElement('span'); i.className = 'info'; i.textContent = 'Details'; i.addEventListener('click', (e) => { e.stopPropagation(); const nx = tr.nextSibling; if (nx && nx.classList && nx.classList.contains('detail')) { nx.remove(); return; } tr.after(detail(n, T.cols.length + 1)); }); td.appendChild(i); }
+    if (n.title) { const s = document.createElement('span'); s.className = 'sub'; s.textContent = n.title; td.appendChild(s); }
+    tr.appendChild(td);
+    n.v.forEach((v) => { const c = document.createElement('td'); c.textContent = money(v); if (v < 0) c.className = 'neg'; tr.appendChild(c); });
+    if (kids.length) tr.addEventListener('click', () => { if (open.has(id)) open.delete(id); else open.add(id); render(); });
+    tb.appendChild(tr);
+    if (isOpen) kids.forEach((c, i) => walk(c, id + '.' + i, depth + 1, forced || (query && matches(n))));
+  })(T.tree, '0', 0, false);
+}
+function detail(n, span) {
+  const tr = document.createElement('tr'); tr.className = 'detail'; const td = document.createElement('td'); td.colSpan = span;
+  [['Fund', n.fund], ['Paid on', n.pay], ['Where the money comes from', n.fb], ['Basis', n.basis], ['Note', n.note], ['Source file', n.src]].forEach(([l, v]) => { if (!v) return; const d = document.createElement('div'); const b = document.createElement('b'); b.textContent = l + '. '; d.append(b, document.createTextNode(v)); td.appendChild(d); });
+  tr.appendChild(td); return tr;
+}
+function renderUmsa() {
+  const d = DATA.umsa, ub = $('#ub'); ub.replaceChildren();
+  d.forEach((r) => { const tr = document.createElement('tr'); [r.month, money(r.revenue), money(r.expenses), money(r.balance), r.basis].forEach((v, i) => { const td = document.createElement('td'); td.textContent = v; if (i === 3 && r.balance < 0) td.className = 'neg'; tr.appendChild(td); }); ub.appendChild(tr); });
+  const W = Math.max(320, $('#chart').clientWidth || 800), H = 260, m = {l: 70, r: 16, t: 14, b: 30};
+  const lo = Math.min(0, ...d.map((r) => r.balance)), hi = Math.max(0, ...d.map((r) => r.balance));
+  const x = (i) => m.l + i * (W - m.l - m.r) / (d.length - 1), y = (v) => m.t + (hi - v) / (hi - lo || 1) * (H - m.t - m.b);
+  const ns = 'http://www.w3.org/2000/svg', svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H); svg.setAttribute('width', '100%'); svg.setAttribute('role', 'img'); svg.setAttribute('aria-label', 'Projected UMSA 2600 balance by month for FY27');
+  const add = (t, a, txt) => { const e = document.createElementNS(ns, t); Object.entries(a).forEach(([k, v]) => e.setAttribute(k, v)); if (txt) e.textContent = txt; svg.appendChild(e); return e; };
+  [lo, lo / 2, 0, hi / 2, hi].forEach((v) => { add('line', {x1: m.l, x2: W - m.r, y1: y(v), y2: y(v), stroke: v === 0 ? '#8a958f' : '#e3e8e5'}); add('text', {x: m.l - 8, y: y(v) + 4, 'text-anchor': 'end'}, (v < 0 ? '(' : '') + '$' + (Math.abs(v) / 1e6).toFixed(1) + 'M' + (v < 0 ? ')' : '')); });
+  add('path', {d: d.map((r, i) => (i ? 'L' : 'M') + x(i) + ' ' + y(r.balance)).join(' '), fill: 'none', stroke: '#006747', 'stroke-width': 2.5});
+  d.forEach((r, i) => { add('circle', {cx: x(i), cy: y(r.balance), r: 4.5, fill: r.basis === 'Actual invoice' ? '#006747' : '#CFC493', stroke: '#006747'}).appendChild(Object.assign(document.createElementNS(ns, 'title'), {textContent: r.month + ' ' + money(r.balance)})); if (W > 620 || i % 3 === 0) add('text', {x: x(i), y: H - 8, 'text-anchor': 'middle'}, r.month.slice(0, 3)); });
+  $('#chart').replaceChildren(svg);
+}
+</script>
+</body>
+</html>
