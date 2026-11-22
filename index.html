@@ -26,6 +26,9 @@ main{max-width:1280px;margin:0 auto;padding:16px 20px 60px}
 .card{background:var(--panel);border:1px solid var(--line);border-top:4px solid var(--green);border-radius:8px;padding:12px 14px}
 .card .l{font-size:12px;color:var(--muted)}
 .card .b{font-size:22px;margin-top:4px;font-variant-numeric:tabular-nums}
+.card.link{cursor:pointer;border-top-color:var(--gold)}
+.card.link:hover,.card.link:focus{outline:2px solid var(--green);outline-offset:1px}
+.card .h{font-size:11px;color:var(--green);margin-top:4px;text-decoration:underline}
 .bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
 .bar input{flex:1;min-width:200px;padding:8px 10px;border:1px solid #b9c4be;border-radius:6px;font-size:14px}
 .bar button{padding:8px 12px;border:1px solid var(--line);background:var(--panel);border-radius:6px;cursor:pointer;font-size:13px}
@@ -100,8 +103,13 @@ function start() {
   $('#gate').hidden = true; $('#app').hidden = false;
   $('#stamp').textContent = 'FY27 drill down by fund, program and person. Built ' + DATA.generated + '. ASF pay actual through ' + DATA.asf_actual_through + '. USF salary actual through ' + DATA.ucs_actual_through + '.';
   const r = DATA.tabs.revenue.tree.v, x = DATA.tabs.expenses.tree.v, u = DATA.umsa[DATA.umsa.length - 1];
-  const cards = [['Revenue, FY27 projected', r[2]], ['Expenses, FY27 projected', x[2]], ['Variance, FY27 projected (revenue less expenses)', r[2] - x[2]], ['Expenses, FY27 actual to date', x[1]], ['UMSA 2600 balance, June 30, 2027 projected', u.balance]];
-  $('#cards').replaceChildren(...cards.map(([l, v]) => { const d = document.createElement('div'); d.className = 'card'; const a = document.createElement('div'); a.className = 'l'; a.textContent = l; const b = document.createElement('div'); b.className = 'b' + (v < 0 ? ' neg' : ''); b.textContent = money(v); d.append(a, b); return d; }));
+  const cards = [['Revenue, FY27 projected', r[2]], ['Expenses, FY27 projected', x[2]], ['Variance, FY27 projected, all funds as recorded', r[2] - x[2]], ['Expenses, FY27 actual to date', x[1]], ['UMSA 2600 balance, June 30, 2027 projected', u.balance]];
+  if (DATA.tabs.realvar) cards.splice(3, 0, ['Real variance, best estimate on today\'s trajectory', DATA.tabs.realvar.tree.v[2], 'realvar']);
+  $('#cards').replaceChildren(...cards.map(([l, v, t]) => { const d = document.createElement('div'); d.className = 'card'; const a = document.createElement('div'); a.className = 'l'; a.textContent = l; const b = document.createElement('div'); b.className = 'b' + (v < 0 ? ' neg' : ''); b.textContent = money(v); d.append(a, b);
+    if (t) { d.classList.add('link'); d.tabIndex = 0; d.setAttribute('role', 'button'); const h = document.createElement('div'); h.className = 'h'; h.textContent = 'Click to see how this is worked out'; d.appendChild(h);
+      const go = () => { tab = t; open = new Set(['0']); query = ''; $('#q').value = ''; render(); $('#tabs').scrollIntoView({behavior: 'smooth', block: 'start'}); };
+      d.addEventListener('click', go); d.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } }); }
+    return d; }));
   const notes = ['Click any row with an arrow to open the level below it. Click Details on a row to see its source file, funding source and basis.',
     'Actual to date comes from the ASF payroll files and the USF salary tracking workbooks. Budget comes from the FY27 TeamHealth contract model, the personnel workbook and the budget workbooks.',
     'Projected ASF pay carries standard monthly pay for future months and does not yet include future RVU, CDU or PIP payouts, so projected incentive pay is understated until those are paid.',
