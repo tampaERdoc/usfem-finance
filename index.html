@@ -100,7 +100,7 @@ function start() {
   $('#gate').hidden = true; $('#app').hidden = false;
   $('#stamp').textContent = 'FY27 drill down by fund, program and person. Built ' + DATA.generated + '. ASF pay actual through ' + DATA.asf_actual_through + '. USF salary actual through ' + DATA.ucs_actual_through + '.';
   const r = DATA.tabs.revenue.tree.v, x = DATA.tabs.expenses.tree.v, u = DATA.umsa[DATA.umsa.length - 1];
-  const cards = [['Revenue, FY27 projected', r[2]], ['Expenses, FY27 projected', x[2]], ['Expenses, FY27 actual to date', x[1]], ['UMSA 2600 balance, June 30, 2027 projected', u.balance]];
+  const cards = [['Revenue, FY27 projected', r[2]], ['Expenses, FY27 projected', x[2]], ['Variance, FY27 projected (revenue less expenses)', r[2] - x[2]], ['Expenses, FY27 actual to date', x[1]], ['UMSA 2600 balance, June 30, 2027 projected', u.balance]];
   $('#cards').replaceChildren(...cards.map(([l, v]) => { const d = document.createElement('div'); d.className = 'card'; const a = document.createElement('div'); a.className = 'l'; a.textContent = l; const b = document.createElement('div'); b.className = 'b' + (v < 0 ? ' neg' : ''); b.textContent = money(v); d.append(a, b); return d; }));
   const notes = ['Click any row with an arrow to open the level below it. Click Details on a row to see its source file, funding source and basis.',
     'Actual to date comes from the ASF payroll files and the USF salary tracking workbooks. Budget comes from the FY27 TeamHealth contract model, the personnel workbook and the budget workbooks.',
