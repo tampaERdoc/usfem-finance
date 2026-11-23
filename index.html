@@ -84,7 +84,10 @@ svg text{font-size:12px;fill:var(--muted);font-family:Arial}
 <script>
 const $ = (s) => document.querySelector(s);
 const money = (v) => { if (v === null || v === undefined) return ''; const s = '$' + Math.round(Math.abs(v)).toLocaleString('en-US'); return v < 0 ? '(' + s + ')' : s; };
+const money2 = (v) => { if (v === null || v === undefined) return ''; const s = '$' + Math.abs(v).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}); return v < 0 ? '(' + s + ')' : s; };
 let DATA = null, tab = 'revenue', open = new Set(['0']), query = '';
+// The rows a tab shows when it opens. A tab can ask for more than its top level, so the Pay by person tab opens with every name showing
+function defOpen(t) { const s = new Set(['0']), T = DATA && DATA.tabs[t], d = T && T.open || 1; if (T) (function w(n, id, depth) { if (depth >= d) return; s.add(id); (n.k || []).forEach((c, i) => w(c, id + '.' + i, depth + 1)); })(T.tree, '0', 0); return s; }
 
 async function unlock(pw) {
   const enc = await (await fetch('data.enc.json', {cache: 'no-store'})).json();
@@ -107,23 +110,23 @@ function start() {
   const r = DATA.tabs.revenue.tree.v, x = DATA.tabs.expenses.tree.v, u = DATA.umsa[DATA.umsa.length - 1];
   const cards = [['Revenue, FY27 projected', r[2], 'revenue', 'Click to see every revenue line'], ['Expenses, FY27 projected', x[2], 'expenses', 'Click to see every expense line'],
     ['Variance, FY27 projected, all funds as recorded', r[2] - x[2], DATA.tabs.funds ? 'funds' : null, 'Click to see it by fund'],
-    ['Payroll and fellow invoices paid to date, FY27', x[1], null, 'Operating spending is not in the files'],
+    ['Payroll and fellow invoices paid to date, FY27', x[1], DATA.tabs.people ? 'people' : null, DATA.tabs.people ? 'Click to see pay by person. Operating spending is not in the files' : 'Operating spending is not in the files'],
     ['UMSA 2600 balance, June 30, 2027 projected', u.balance, 'umsa', 'Click to see it by month']];
   if (DATA.tabs.realvar) cards.splice(3, 0, ['Real variance, best estimate on today\'s trajectory', DATA.tabs.realvar.tree.v[2], 'realvar', 'Click to see how this is worked out']);
   $('#cards').replaceChildren(...cards.map(([l, v, t, hint]) => { const d = document.createElement('div'); d.className = 'card'; const a = document.createElement('div'); a.className = 'l'; a.textContent = l; const b = document.createElement('div'); b.className = 'b' + (v < 0 ? ' neg' : ''); b.textContent = money(v); d.append(a, b);
     if (hint) { const h = document.createElement('div'); h.className = t ? 'h' : 'h plain'; h.textContent = hint; d.appendChild(h); }
     if (t) { d.classList.add('link'); d.tabIndex = 0; d.setAttribute('role', 'button');
-      const go = () => { tab = t; open = new Set(['0']); query = ''; $('#q').value = ''; render(); $('#tabs').scrollIntoView({behavior: 'smooth', block: 'start'}); };
+      const go = () => { tab = t; open = defOpen(t); query = ''; $('#q').value = ''; render(); $('#tabs').scrollIntoView({behavior: 'smooth', block: 'start'}); };
       d.addEventListener('click', go); d.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } }); }
     return d; }));
   const notes = DATA.notes || ['Click any row with an arrow to open the level below it. Click Details on a row to see its source file, funding source and basis.'];
   $('#notes').replaceChildren(...notes.map((t) => { const li = document.createElement('li'); li.textContent = t; return li; }));
   const tabsEl = $('#tabs'), umsaBtn = tabsEl.querySelector('[data-t=umsa]');
   Object.keys(DATA.tabs).forEach((k) => { const b = document.createElement('button'); b.setAttribute('role', 'tab'); b.dataset.t = k; b.textContent = DATA.tabs[k].label || k; tabsEl.insertBefore(b, umsaBtn); });
-  document.querySelectorAll('#tabs button').forEach((b) => b.addEventListener('click', () => { tab = b.dataset.t; open = new Set(['0']); query = ''; $('#q').value = ''; render(); }));
+  document.querySelectorAll('#tabs button').forEach((b) => b.addEventListener('click', () => { tab = b.dataset.t; open = defOpen(tab); query = ''; $('#q').value = ''; render(); }));
   $('#q').addEventListener('input', (e) => { query = e.target.value.trim().toLowerCase(); render(); });
   $('#exp').addEventListener('click', () => { const all = new Set(); (function w(n, id) { all.add(id); (n.k || []).forEach((c, i) => w(c, id + '.' + i)); })(DATA.tabs[tab].tree, '0'); open = all; render(); });
-  $('#col').addEventListener('click', () => { open = new Set(['0']); render(); });
+  $('#col').addEventListener('click', () => { open = defOpen(tab); render(); });
   render();
 }
 function matches(n) { return n.n.toLowerCase().includes(query) || (n.title || '').toLowerCase().includes(query) || (n.fund || '').toLowerCase().includes(query); }
@@ -132,13 +135,13 @@ function render() {
   document.querySelectorAll('#tabs button').forEach((b) => b.setAttribute('aria-selected', b.dataset.t === tab));
   const isU = tab === 'umsa'; $('#treeview').hidden = isU; $('#umsaview').hidden = !isU;
   if (isU) return renderUmsa();
-  const T = DATA.tabs[tab];
+  const T = DATA.tabs[tab], fm = T.cents ? money2 : money;
   $('#tabnote').textContent = T.note || '';
   const hd = $('#hd'); hd.replaceChildren(); ['Item'].concat(T.cols).forEach((c) => { const th = document.createElement('th'); th.textContent = c; hd.appendChild(th); });
   const tb = $('#tb'); tb.replaceChildren();
   (function walk(n, id, depth, forced) {
     if (query && !forced && !anyMatch(n)) return;
-    const kids = n.k || [], isOpen = query ? (kids.some(anyMatch) || forced && open.has(id)) : open.has(id);
+    const kids = n.k || [], isOpen = query ? (kids.some(anyMatch) || (forced || matches(n)) && open.has(id)) : open.has(id);
     const tr = document.createElement('tr'); tr.className = 'd' + Math.min(depth, 3) + (kids.length ? ' has' : '');
     const td = document.createElement('td'); td.style.paddingLeft = (10 + depth * 20) + 'px';
     const tw = document.createElement('span'); tw.className = 'tw'; tw.textContent = kids.length ? (isOpen ? '▾' : '▸') : ''; td.appendChild(tw);
@@ -148,7 +151,7 @@ function render() {
     if (hasInfo) { const i = document.createElement('span'); i.className = 'info'; i.textContent = 'Details'; i.addEventListener('click', (e) => { e.stopPropagation(); const nx = tr.nextSibling; if (nx && nx.classList && nx.classList.contains('detail')) { nx.remove(); return; } tr.after(detail(n, T.cols.length + 1)); }); td.appendChild(i); }
     if (n.title) { const s = document.createElement('span'); s.className = 'sub'; s.textContent = n.title; td.appendChild(s); }
     tr.appendChild(td);
-    n.v.forEach((v) => { const c = document.createElement('td'); c.textContent = money(v); if (v < 0) c.className = 'neg'; tr.appendChild(c); });
+    n.v.forEach((v) => { const c = document.createElement('td'); c.textContent = fm(v); if (v < 0) c.className = 'neg'; tr.appendChild(c); });
     if (kids.length) tr.addEventListener('click', () => { if (open.has(id)) open.delete(id); else open.add(id); render(); });
     tb.appendChild(tr);
     if (isOpen) kids.forEach((c, i) => walk(c, id + '.' + i, depth + 1, forced || (query && matches(n))));
