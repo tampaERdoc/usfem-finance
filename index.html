@@ -29,6 +29,7 @@ main{max-width:1280px;margin:0 auto;padding:16px 20px 60px}
 .card.link{cursor:pointer;border-top-color:var(--gold)}
 .card.link:hover,.card.link:focus{outline:2px solid var(--green);outline-offset:1px}
 .card .h{font-size:11px;color:var(--green);margin-top:4px;text-decoration:underline}
+.card .h.plain{color:var(--muted,#5b6660);text-decoration:none}
 .bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
 .bar input{flex:1;min-width:200px;padding:8px 10px;border:1px solid #b9c4be;border-radius:6px;font-size:14px}
 .bar button{padding:8px 12px;border:1px solid var(--line);background:var(--panel);border-radius:6px;cursor:pointer;font-size:13px}
@@ -74,6 +75,7 @@ svg text{font-size:12px;fill:var(--muted);font-family:Arial}
     <div class="wrap"><table><thead><tr id="hd"></tr></thead><tbody id="tb"></tbody></table></div>
   </div>
   <div id="umsaview" hidden>
+    <p class="notes" id="umsanote" style="margin:0 0 10px"></p>
     <div class="wrap" style="padding:14px"><div id="chart"></div></div>
     <div class="wrap" style="margin-top:12px"><table><thead><tr><th>Month</th><th>Revenue</th><th>Expenses</th><th>Balance at month end</th><th>Basis</th></tr></thead><tbody id="ub"></tbody></table></div>
   </div>
@@ -103,20 +105,18 @@ function start() {
   $('#gate').hidden = true; $('#app').hidden = false;
   $('#stamp').textContent = 'FY27 drill down by fund, program and person. Built ' + DATA.generated + '. ASF pay actual through ' + DATA.asf_actual_through + '. USF salary actual through ' + DATA.ucs_actual_through + '.';
   const r = DATA.tabs.revenue.tree.v, x = DATA.tabs.expenses.tree.v, u = DATA.umsa[DATA.umsa.length - 1];
-  const cards = [['Revenue, FY27 projected', r[2]], ['Expenses, FY27 projected', x[2]], ['Variance, FY27 projected, all funds as recorded', r[2] - x[2]], ['Expenses, FY27 actual to date', x[1]], ['UMSA 2600 balance, June 30, 2027 projected', u.balance]];
-  if (DATA.tabs.realvar) cards.splice(3, 0, ['Real variance, best estimate on today\'s trajectory', DATA.tabs.realvar.tree.v[2], 'realvar']);
-  $('#cards').replaceChildren(...cards.map(([l, v, t]) => { const d = document.createElement('div'); d.className = 'card'; const a = document.createElement('div'); a.className = 'l'; a.textContent = l; const b = document.createElement('div'); b.className = 'b' + (v < 0 ? ' neg' : ''); b.textContent = money(v); d.append(a, b);
-    if (t) { d.classList.add('link'); d.tabIndex = 0; d.setAttribute('role', 'button'); const h = document.createElement('div'); h.className = 'h'; h.textContent = 'Click to see how this is worked out'; d.appendChild(h);
+  const cards = [['Revenue, FY27 projected', r[2], 'revenue', 'Click to see every revenue line'], ['Expenses, FY27 projected', x[2], 'expenses', 'Click to see every expense line'],
+    ['Variance, FY27 projected, all funds as recorded', r[2] - x[2], DATA.tabs.funds ? 'funds' : null, 'Click to see it by fund'],
+    ['Payroll and fellow invoices paid to date, FY27', x[1], null, 'Operating spending is not in the files'],
+    ['UMSA 2600 balance, June 30, 2027 projected', u.balance, 'umsa', 'Click to see it by month']];
+  if (DATA.tabs.realvar) cards.splice(3, 0, ['Real variance, best estimate on today\'s trajectory', DATA.tabs.realvar.tree.v[2], 'realvar', 'Click to see how this is worked out']);
+  $('#cards').replaceChildren(...cards.map(([l, v, t, hint]) => { const d = document.createElement('div'); d.className = 'card'; const a = document.createElement('div'); a.className = 'l'; a.textContent = l; const b = document.createElement('div'); b.className = 'b' + (v < 0 ? ' neg' : ''); b.textContent = money(v); d.append(a, b);
+    if (hint) { const h = document.createElement('div'); h.className = t ? 'h' : 'h plain'; h.textContent = hint; d.appendChild(h); }
+    if (t) { d.classList.add('link'); d.tabIndex = 0; d.setAttribute('role', 'button');
       const go = () => { tab = t; open = new Set(['0']); query = ''; $('#q').value = ''; render(); $('#tabs').scrollIntoView({behavior: 'smooth', block: 'start'}); };
       d.addEventListener('click', go); d.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } }); }
     return d; }));
-  const notes = ['Click any row with an arrow to open the level below it. Click Details on a row to see its source file, funding source and basis.',
-    'Actual to date comes from the ASF payroll files and the USF salary tracking workbooks. Budget comes from the FY27 TeamHealth contract model, the personnel workbook and the budget workbooks.',
-    'Projected ASF pay carries standard monthly pay for future months and does not yet include future RVU, CDU or PIP payouts, so projected incentive pay is understated until those are paid.',
-    'Projected USF salary is actual to date plus the latest pay period amount for the remaining pay periods.',
-    'Fringe, malpractice, Dean\'s tax and operating lines are budget figures. No FY27 UMSA 2600 ledger was available.',
-    'PhD faculty can only be paid on USF (UCS) state side accounts. TeamHealth money paid out on ASF cannot pay them.',
-    'Pay programs shows the same payroll dollars as Expenses, grouped by program and fund with the people under each.'];
+  const notes = DATA.notes || ['Click any row with an arrow to open the level below it. Click Details on a row to see its source file, funding source and basis.'];
   $('#notes').replaceChildren(...notes.map((t) => { const li = document.createElement('li'); li.textContent = t; return li; }));
   const tabsEl = $('#tabs'), umsaBtn = tabsEl.querySelector('[data-t=umsa]');
   Object.keys(DATA.tabs).forEach((k) => { const b = document.createElement('button'); b.setAttribute('role', 'tab'); b.dataset.t = k; b.textContent = DATA.tabs[k].label || k; tabsEl.insertBefore(b, umsaBtn); });
@@ -160,7 +160,7 @@ function detail(n, span) {
   tr.appendChild(td); return tr;
 }
 function renderUmsa() {
-  const d = DATA.umsa, ub = $('#ub'); ub.replaceChildren();
+  const d = DATA.umsa, ub = $('#ub'); ub.replaceChildren(); $('#umsanote').textContent = DATA.umsa_note || '';
   d.forEach((r) => { const tr = document.createElement('tr'); [r.month, money(r.revenue), money(r.expenses), money(r.balance), r.basis].forEach((v, i) => { const td = document.createElement('td'); td.textContent = v; if (i === 3 && r.balance < 0) td.className = 'neg'; tr.appendChild(td); }); ub.appendChild(tr); });
   const W = Math.max(320, $('#chart').clientWidth || 800), H = 260, m = {l: 70, r: 16, t: 14, b: 30};
   const lo = Math.min(0, ...d.map((r) => r.balance)), hi = Math.max(0, ...d.map((r) => r.balance));
@@ -170,7 +170,7 @@ function renderUmsa() {
   const add = (t, a, txt) => { const e = document.createElementNS(ns, t); Object.entries(a).forEach(([k, v]) => e.setAttribute(k, v)); if (txt) e.textContent = txt; svg.appendChild(e); return e; };
   [lo, lo / 2, 0, hi / 2, hi].forEach((v) => { add('line', {x1: m.l, x2: W - m.r, y1: y(v), y2: y(v), stroke: v === 0 ? '#8a958f' : '#e3e8e5'}); add('text', {x: m.l - 8, y: y(v) + 4, 'text-anchor': 'end'}, (v < 0 ? '(' : '') + '$' + (Math.abs(v) / 1e6).toFixed(1) + 'M' + (v < 0 ? ')' : '')); });
   add('path', {d: d.map((r, i) => (i ? 'L' : 'M') + x(i) + ' ' + y(r.balance)).join(' '), fill: 'none', stroke: '#006747', 'stroke-width': 2.5});
-  d.forEach((r, i) => { add('circle', {cx: x(i), cy: y(r.balance), r: 4.5, fill: r.basis === 'Actual invoice' ? '#006747' : '#CFC493', stroke: '#006747'}).appendChild(Object.assign(document.createElementNS(ns, 'title'), {textContent: r.month + ' ' + money(r.balance)})); if (W > 620 || i % 3 === 0) add('text', {x: x(i), y: H - 8, 'text-anchor': 'middle'}, r.month.slice(0, 3)); });
+  d.forEach((r, i) => { add('circle', {cx: x(i), cy: y(r.balance), r: 4.5, fill: (r.actual || r.basis === 'Actual invoice') ? '#006747' : '#CFC493', stroke: '#006747'}).appendChild(Object.assign(document.createElementNS(ns, 'title'), {textContent: r.month + ' ' + money(r.balance)})); if (W > 620 || i % 3 === 0) add('text', {x: x(i), y: H - 8, 'text-anchor': 'middle'}, r.month.slice(0, 3)); });
   $('#chart').replaceChildren(svg);
 }
 </script>
